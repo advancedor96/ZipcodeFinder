@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tw">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>郵遞區號查詢</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+</head>
+<body>
+	<div class="jumbotron">
+		<h1 class="display-3">郵遞區號查詢</h1>
+		<p class="lead">輸入部分地址，將透過 Google Map Geolocation API 查詢郵遞區號</p>
+		<hr class="my-4">
+		<p>輸入地址(中英文皆可)</p>
+				<div class="form-group">
+						<input type="text" class="form-control" id="address" placeholder="請輸入地址">
+						<button type="button" class="btn btn-info" id="qry_btn">查詢</button>
+						
+				</div>
+
+				<div id="result"></div>
+	</div>
+
+
+
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+	<script>
+
+
+		document.getElementById('address').onkeyup = function(event){
+			if(event.keyCode == 13){
+				$("#qry_btn").click();
+			}
+			// else if(  
+			// 	( event.keyCode >=48 && event.keyCode <=57) || 
+			// 	( event.keyCode >=65 && event.keyCode <=90) ||   
+			// 	( event.keyCode ==8 ) ||	
+			// 	( event.keyCode ==32 )
+			// ){
+			// 	//地址自動完成
+			// 	// console.log('kekke')
+			// }
+		}
+
+		document.getElementById('qry_btn').onclick = function(){
+			if( $("#address").val() == ''){
+				return ;
+			}
+			//清空原資料
+			$("#result").empty();
+			//防止按鈕再被按
+			$("#qry_btn").removeClass('btn-info').addClass('btn-secondary');
+			$("#qry_btn").attr('disabled', 'disabled');
+			$("#qry_btn").text('查詢中')
+
+			// $("#qry_btn").disabled;
+
+			let api_key = "AIzaSyATXxhQs9JXromVYEW3cSHsld7di0WlQSY";
+			let query_url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + $("#address").val() + "&key=" + api_key;
+
+
+			$.ajax({
+				url: query_url,
+
+				success: function(data){
+
+					console.log('結果:', data);
+
+
+					if(data['status'] ==="OK"){
+						let number = data['results'].length;
+
+						data['results'].forEach(function(value, idx){
+							//每一筆結果地址的迴圈
+
+							//取得zipcode
+							let zipcode = '';
+							value['address_components'].forEach(function(val, i){
+								if(val['types'][0] === 'postal_code'){
+									zipcode = val['long_name'];
+								}
+							})
+
+							//取得完整地址
+							let formatted_address = value['formatted_address'];
+
+							// console.log('zipcode:' + zipcode + ', 完整地址：', formatted_address);
+							if(zipcode ===''){
+								zipcode = '(無)';
+							}
+
+							let zipcode_html = $('<h4>', {
+								'class': "alert-heading",
+								'text': zipcode
+							});
+							let a = $('<div>', {
+								'class': 'alert alert-success'
+							}).append(zipcode_html).append($('<hr>')).append($('<p>完整地址：' + formatted_address + "</p>"))
+
+							$('#result').append(a);
+
+
+
+
+
+						});
+
+					}else if(data['status'] === "ZERO_RESULTS"){
+						$('<div>', {
+							'class': 'alert alert-danger',
+							'text': '沒有結果'
+						}).appendTo("#result");
+					}else if(data['status'] === "OVER_QUERY_LIMIT"){
+						$('<div>', {
+							'class': 'alert alert-danger',
+							'text': 'Google Map API使用已經超出配額'
+						}).appendTo("#result");
+					}else if(data['status'] === "REQUEST_DENIED"){
+						$('<div>', {
+							'class': 'alert alert-danger',
+							'text': '你的要求被拒絕'
+						}).appendTo("#result");
+					}else if(data['status'] === "UNKNOWN_ERROR"){
+						$('<div>', {
+							'class': 'alert alert-danger',
+							'text': '未知的錯誤。重試看看'
+						}).appendTo("#result");
+					}else{
+						$('<div>', {
+							'class': 'alert alert-danger',
+							'text': '意外發生囉'
+						}).appendTo("#result");
+					}
+					
+				},
+				error: function(xhr,status,error){
+
+					// console.log("xhr:", xhr);
+					// console.log("status:", status);
+					// console.log("error:", error);
+
+					if(xhr['responseJSON']['status'] == 'INVALID_REQUEST'){
+						console.log('錯誤！缺少一些資訊。錯誤訊息：' + xhr['responseJSON']['error_message']);
+					}
+				},
+				complete: function( xhr, textStatus){
+					//回復按鈕功能
+					$("#qry_btn").removeClass('btn-secondary').addClass('btn-info');
+					$("#qry_btn").removeAttr("disabled");
+					$("#qry_btn").text('查詢')
+
+				}
+			});
+
+			// console.log( $("#address").val() );
+		}
+	</script>
+	<div id="disqus_thread"></div>
+	<script>
+
+	/**
+	*  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+	*  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables*/
+	/*
+	var disqus_config = function () {
+	this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+	this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+	};
+	*/
+	(function() { // DON'T EDIT BELOW THIS LINE
+	var d = document, s = d.createElement('script');
+	s.src = 'https://zipcodefinder.disqus.com/embed.js';
+	s.setAttribute('data-timestamp', +new Date());
+	(d.head || d.body).appendChild(s);
+	})();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+										
+</body>
+</html>
